@@ -1,10 +1,10 @@
-# 🎫 Customer Support Ticket Resolution — OpenEnv RL Environment
+#  Customer Support Ticket Resolution — OpenEnv RL Environment
 
 A real-world reinforcement learning environment where an AI agent learns to resolve customer support tickets by selecting the correct action type and crafting an appropriate response.
 
 ---
 
-## 🌍 What does the agent learn?
+##  What does the agent learn?
 
 Given a customer complaint, the agent must:
 1. **Choose the correct action** from: `refund` | `escalate` | `troubleshoot` | `inform`
@@ -12,7 +12,7 @@ Given a customer complaint, the agent must:
 
 ---
 
-## 📊 Task Difficulty Tiers
+##  Task Difficulty Tiers
 
 | Tier   | Tickets          | Description |
 |--------|-----------------|-------------|
@@ -22,7 +22,7 @@ Given a customer complaint, the agent must:
 
 ---
 
-## 🏆 Reward Function (0.0 → 1.0)
+##  Reward Function (0.0 → 1.0)
 
 | Component          | Weight | Description |
 |--------------------|--------|-------------|
@@ -32,7 +32,7 @@ Given a customer complaint, the agent must:
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 openenv-support/
@@ -49,7 +49,7 @@ openenv-support/
 
 ---
 
-## 🚀 Local Setup (Step-by-Step for Beginners)
+##  Local Setup (Step-by-Step for Beginners)
 
 ### Step 1 — Clone and enter the project
 ```bash
@@ -105,7 +105,7 @@ ENV_URL=https://your-username-customer-support-rl.hf.space
 
 ---
 
-## 🔌 API Reference
+##  API Reference
 
 ### `POST /reset?task_id=T001`
 Start a new episode. Returns first observation.
@@ -127,7 +127,7 @@ List all available tasks and difficulties.
 
 ---
 
-## 📋 Pre-Submission Checklist
+##  Pre-Submission Checklist
 
 - [ ] `openenv.yaml` exists in root
 - [ ] `Dockerfile` exists in root
@@ -142,7 +142,7 @@ List all available tasks and difficulties.
 
 ---
 
-## 💡 Tips
+##  Tips
 
 - The grader is **partial** — even a wrong action type can score up to 0.50 via keyword + quality signals
 - Hard tasks allow up to 5 steps, so the agent can iterate and improve
