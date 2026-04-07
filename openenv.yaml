@@ -1,0 +1,86 @@
+name: customer-support-rl
+version: "1.0.0"
+
+description: >
+  A real-world reinforcement learning environment where an AI agent resolves
+  customer support tickets by choosing the correct action type (refund, escalate,
+  troubleshoot, inform) and crafting an appropriate response.
+
+author: hackathon-participant
+license: MIT
+
+entrypoint: server.main:app
+
+endpoints:
+  reset: /reset
+  step: /step
+  state: /state
+
+action_space:
+  type: structured
+  fields:
+    - name: action_type
+      type: enum
+      values: [refund, escalate, troubleshoot, inform]
+    - name: response
+      type: string
+
+observation_space:
+  type: structured
+  fields:
+    - name: ticket_id
+      type: string
+    - name: customer_message
+      type: string
+    - name: history
+      type: list[dict]
+    - name: task_difficulty
+      type: enum
+      values: [easy, medium, hard]
+    - name: feedback
+      type: string
+
+tasks:
+  - id: T001
+    difficulty: easy
+    description: Customer charged twice, wants refund.
+  - id: T002
+    difficulty: easy
+    description: Customer forgot password, needs reset instructions.
+  - id: T003
+    difficulty: easy
+    description: App crashing on iPhone, needs troubleshooting.
+  - id: T004
+    difficulty: medium
+    description: Cancelled plan but still charged; frustrated repeat contact.
+  - id: T005
+    difficulty: medium
+    description: Suspicious login from unknown country — security escalation.
+  - id: T006
+    difficulty: medium
+    description: Dashboard slow after maintenance window.
+  - id: T007
+    difficulty: hard
+    description: API outage causing business loss; needs escalation + refund.
+  - id: T008
+    difficulty: hard
+    description: AI gave wrong financial advice; potential legal exposure.
+  - id: T009
+    difficulty: hard
+    description: OAuth2 debugging for developer — CORS/token issue.
+
+reward:
+  range: [0.0, 1.0]
+  components:
+    - name: action_correctness
+      weight: 0.50
+    - name: keyword_coverage
+      weight: 0.30
+    - name: response_quality
+      weight: 0.20
+
+runtime:
+  max_steps_per_episode: 5
+  max_inference_time_minutes: 20
+  min_vcpu: 2
+  min_memory_gb: 8
