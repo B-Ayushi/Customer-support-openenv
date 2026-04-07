@@ -1,3 +1,12 @@
+---
+title: Customer Support OpenEnv
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
 # Customer Support Ticket Resolution - OpenEnv RL Environment
 
 A real-world reinforcement learning environment where an AI agent learns to resolve customer support tickets by selecting the correct action type and crafting an appropriate response.
