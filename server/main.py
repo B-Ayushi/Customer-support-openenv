@@ -37,7 +37,7 @@ def _new_state(task: dict) -> dict:
         "max_steps": task["max_steps"],
         "step_count": 0,
         "done": False,
-        "total_reward": 0.0,
+        "total_reward": 0.01,
         "history": [],
     }
 
