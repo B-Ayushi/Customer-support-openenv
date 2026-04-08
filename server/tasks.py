@@ -1,19 +1,10 @@
 """
 tasks.py — ticket bank and grader logic for the Customer Support RL environment.
-
-Each task is a dict with:
-    ticket_id         : unique ID
-    difficulty        : 'easy' | 'medium' | 'hard'
-    customer_message  : raw text the agent receives
-    correct_action    : canonical action_type that should be chosen
-    expected_keywords : words the response should include for full marks
-    max_steps         : how many agent turns are allowed
+Rewards are strictly clamped to (0.01, 0.99) — never 0.0 or 1.0.
 """
 
-import re
-
 TASKS = [
-    # ── EASY (clear-cut, single correct action) ───────────────────────────────
+    # ── EASY ──────────────────────────────────────────────────────────────────
     {
         "ticket_id": "T001",
         "difficulty": "easy",
@@ -28,9 +19,7 @@ TASKS = [
     {
         "ticket_id": "T002",
         "difficulty": "easy",
-        "customer_message": (
-            "I forgot my password. How do I reset it?"
-        ),
+        "customer_message": "I forgot my password. How do I reset it?",
         "correct_action": "inform",
         "expected_keywords": ["reset", "password", "link", "email"],
         "max_steps": 3,
@@ -38,15 +27,12 @@ TASKS = [
     {
         "ticket_id": "T003",
         "difficulty": "easy",
-        "customer_message": (
-            "My app keeps crashing every time I open it on my iPhone."
-        ),
+        "customer_message": "My app keeps crashing every time I open it on my iPhone.",
         "correct_action": "troubleshoot",
         "expected_keywords": ["restart", "update", "reinstall", "steps"],
         "max_steps": 3,
     },
-
-    # ── MEDIUM (requires interpretation, partial ambiguity) ───────────────────
+    # ── MEDIUM ────────────────────────────────────────────────────────────────
     {
         "ticket_id": "T004",
         "difficulty": "medium",
@@ -81,8 +67,7 @@ TASKS = [
         "expected_keywords": ["cache", "browser", "refresh", "status", "issue"],
         "max_steps": 4,
     },
-
-    # ── HARD (complex, multi-issue, requires nuanced reasoning) ───────────────
+    # ── HARD ──────────────────────────────────────────────────────────────────
     {
         "ticket_id": "T007",
         "difficulty": "hard",
@@ -124,64 +109,71 @@ TASKS = [
     },
 ]
 
+# Strictly open interval — validator rejects 0.0 and 1.0
+REWARD_MIN = 0.01
+REWARD_MAX = 0.99
 
-# ── Grader ────────────────────────────────────────────────────────────────────
+
+def clamp_reward(x: float) -> float:
+    """Always returns a value strictly inside (0, 1)."""
+    return max(REWARD_MIN, min(REWARD_MAX, round(float(x), 4)))
+
 
 def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
     """
-    Return (reward: float 0.0–1.0, feedback: str).
+    Return (reward strictly in (0.01, 0.99), feedback string).
 
-    Scoring breakdown:
-        0.50  — correct action_type chosen
-        0.30  — keyword coverage in the response
-        0.20  — response quality (length, politeness, clarity)
+    Scoring:
+        0.48  — correct action_type  (capped at 0.48, not 0.50, to avoid hitting 0.99)
+        0.29  — keyword coverage
+        0.19  — response quality
+        ───────
+        0.96 max raw → clamped to 0.99 max
     """
     reward = 0.0
     notes = []
 
-    # 1. Action type correctness (0.5)
+    response = response or ""
+    response_lower = response.lower()
+
+    # 1. Action type correctness (0.48)
     if action_type == task["correct_action"]:
-        reward += 0.50
-        notes.append("✓ Correct action type selected (+0.50)")
+        reward += 0.48
+        notes.append("✓ Correct action type selected (+0.48)")
     else:
         notes.append(
             f"✗ Wrong action '{action_type}', expected '{task['correct_action']}' (+0.00)"
         )
 
-    # 2. Keyword coverage (0.30)
-    response_lower = response.lower()
+    # 2. Keyword coverage (0.29)
     keywords_hit = [kw for kw in task["expected_keywords"] if kw in response_lower]
     kw_ratio = len(keywords_hit) / max(len(task["expected_keywords"]), 1)
-    kw_score = round(kw_ratio * 0.30, 4)
+    kw_score = round(kw_ratio * 0.29, 4)
     reward += kw_score
-    notes.append(
-        f"Keywords matched: {keywords_hit} → +{kw_score:.2f}"
-    )
+    notes.append(f"Keywords matched: {keywords_hit} → +{kw_score:.2f}")
 
-    # 3. Response quality (0.20)
+    # 3. Response quality (0.19)
     quality_score = 0.0
     word_count = len(response.split())
 
-    # Length signal: 20-150 words is ideal
     if word_count >= 20:
-        quality_score += 0.08
+        quality_score += 0.07
     if word_count >= 50:
         quality_score += 0.04
 
-    # Politeness signals
     polite_words = ["sorry", "apologize", "thank", "understand", "appreciate", "please"]
     if any(pw in response_lower for pw in polite_words):
         quality_score += 0.05
 
-    # No aggressive / dismissive language
-    bad_phrases = ["not my problem", "you're wrong", "impossible", "never", "don't care"]
+    bad_phrases = ["not my problem", "you're wrong", "impossible", "don't care"]
     if not any(bp in response_lower for bp in bad_phrases):
         quality_score += 0.03
 
-    quality_score = round(min(quality_score, 0.20), 4)
+    quality_score = round(min(quality_score, 0.19), 4)
     reward += quality_score
     notes.append(f"Quality score: +{quality_score:.2f} (words={word_count})")
 
-    reward = round(min(reward, 1.0), 4)
+    # Always clamp — this is the single source of truth
+    reward = clamp_reward(reward)
     feedback = " | ".join(notes)
     return reward, feedback

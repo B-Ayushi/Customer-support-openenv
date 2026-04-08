@@ -9,11 +9,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.models import Action, Observation, State
-from server.tasks import TASKS, grade
+from server.tasks import TASKS, grade, clamp_reward
 
 app = FastAPI(
     title="Customer Support RL Environment",
-    description="OpenEnv-compliant environment for training agents on real-world customer support ticket resolution.",
+    description="OpenEnv-compliant environment for customer support ticket resolution.",
     version="1.0.0",
 )
 
@@ -24,8 +24,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── In-memory session store ───────────────────────────────────────────────────
-# Maps session_id → current environment state dict
 _sessions: dict[str, dict] = {}
 
 
@@ -44,8 +42,6 @@ def _new_state(task: dict) -> dict:
     }
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
-
 @app.get("/")
 def health():
     return {"status": "ok", "environment": "customer-support-rl"}
@@ -53,10 +49,6 @@ def health():
 
 @app.post("/reset", response_model=Observation)
 def reset(task_id: str | None = None):
-    """
-    Start a new episode. Optionally pin a specific ticket via task_id.
-    Returns the first observation.
-    """
     session_id = str(uuid.uuid4())
 
     if task_id:
@@ -75,29 +67,25 @@ def reset(task_id: str | None = None):
         history=[],
         task_difficulty=state["task_difficulty"],
         done=False,
-        reward=0.0,
+        reward=0.01,   # strictly > 0
         feedback="Episode started. Respond to the customer ticket.",
-        session_id=session_id,   # injected for client tracking
+        session_id=session_id,
     )
 
 
 @app.post("/step", response_model=Observation)
 def step(session_id: str, action: Action):
-    """
-    Submit one agent action for the current episode.
-    """
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found. Call /reset first.")
 
     state = _sessions[session_id]
 
     if state["done"]:
-        raise HTTPException(status_code=400, detail="Episode is already done. Call /reset to start a new one.")
+        raise HTTPException(status_code=400, detail="Episode already done. Call /reset.")
 
     state["step_count"] += 1
 
-    # Grade the action
-    reward, feedback = grade(
+    raw_reward, feedback = grade(
         task={
             "correct_action": state["correct_action"],
             "expected_keywords": state["expected_keywords"],
@@ -105,12 +93,18 @@ def step(session_id: str, action: Action):
         action_type=action.action_type,
         response=action.response,
     )
-    state["total_reward"] += reward
-    state["history"].append(
-        {"step": state["step_count"], "action_type": action.action_type, "response": action.response, "reward": reward}
-    )
 
-    # Episode ends if: max steps reached OR agent got a perfect score
+    # clamp_reward guarantees strictly (0.01, 0.99) — never 0.0 or 1.0
+    reward = clamp_reward(raw_reward)
+
+    state["total_reward"] += reward
+    state["history"].append({
+        "step": state["step_count"],
+        "action_type": action.action_type,
+        "response": action.response,
+        "reward": reward,
+    })
+
     done = state["step_count"] >= state["max_steps"] or reward >= 0.95
     state["done"] = done
 
@@ -122,12 +116,12 @@ def step(session_id: str, action: Action):
         done=done,
         reward=reward,
         feedback=feedback,
+        session_id=session_id,
     )
 
 
 @app.get("/state", response_model=State)
 def get_state(session_id: str):
-    """Return the full internal state for a session (used by training harness)."""
     if session_id not in _sessions:
         raise HTTPException(status_code=404, detail="Session not found.")
     s = _sessions[session_id]
@@ -136,11 +130,12 @@ def get_state(session_id: str):
 
 @app.get("/tasks")
 def list_tasks():
-    """List all available tasks with their difficulties."""
     return [
         {"ticket_id": t["ticket_id"], "difficulty": t["difficulty"], "customer_message": t["customer_message"]}
         for t in TASKS
     ]
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server.main:app", host="0.0.0.0", port=7860, reload=False)
