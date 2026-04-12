@@ -79,8 +79,8 @@ TASKS = [
 ]
 
 # SAFE BOUNDS: Never allow a 0.0 or 1.0 total
-REWARD_MIN = 0.05
-REWARD_MAX = 0.85
+REWARD_MIN = 0.12
+REWARD_MAX = 0.88
 
 def clamp_reward(reward: float) -> float:
     """Strictly forces reward into the safe zone."""
