@@ -111,27 +111,23 @@ REWARD_MIN = 0.01
 REWARD_MAX = 0.99
 
 
-def clamp_reward(x: float) -> float:
-    """Guarantee reward is strictly inside (0, 1). Always call this before returning."""
-    clamped = max(REWARD_MIN, min(REWARD_MAX, float(x)))
-    return round(clamped, 4)
+# server/tasks.py
+
+def clamp_reward(reward: float) -> float:
+    # Use a narrower range to allow for "Reset" rewards and 
+    # floating point math errors.
+    # Strictly between 0.01 and 0.95
+    return float(max(0.01, min(0.95, reward)))
 
 
 def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
-    """
-    Score an agent action. Returns (reward, feedback).
-    reward is ALWAYS strictly in (0.01, 0.99).
-
-    Max possible raw score = 0.48 + 0.29 + 0.19 = 0.96 → clamped to 0.96
-    Min possible raw score = 0.0 → clamped to 0.01
-    """
     reward = 0.0
     notes = []
 
     response = response or ""
     response_lower = response.lower()
 
-    # 1. Action correctness — max 0.48 (not 0.50, keeps ceiling below 1.0)
+    # 1. Action correctness — max 0.48
     if action_type == task["correct_action"]:
         reward += 0.48
         notes.append("Correct action type (+0.48)")
@@ -139,29 +135,39 @@ def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
         notes.append(f"Wrong action '{action_type}', expected '{task['correct_action']}' (+0.00)")
 
     # 2. Keyword coverage — max 0.29
-    keywords_hit = [kw for kw in task["expected_keywords"] if kw in response_lower]
-    kw_ratio = len(keywords_hit) / max(len(task["expected_keywords"]), 1)
-    kw_score = round(kw_ratio * 0.29, 4)
-    reward += kw_score
-    notes.append(f"Keywords {keywords_hit} +{kw_score:.2f}")
+    # Ensure expected_keywords exists and is a list
+    expected_kws = task.get("expected_keywords", [])
+    keywords_hit = [kw for kw in expected_kws if kw in response_lower]
+    
+    if expected_kws:
+        kw_ratio = len(keywords_hit) / len(expected_kws)
+        kw_score = round(kw_ratio * 0.29, 4)
+        reward += kw_score
+        notes.append(f"Keywords {keywords_hit} +{kw_score:.2f}")
+    else:
+        notes.append("No keywords required (+0.00)")
 
     # 3. Quality — max 0.19
     quality = 0.0
     words = len(response.split())
-    if words >= 20:
-        quality += 0.07
-    if words >= 50:
-        quality += 0.04
+    if words >= 20: quality += 0.07
+    if words >= 50: quality += 0.04
+    
     polite = ["sorry", "apologize", "thank", "understand", "appreciate", "please"]
     if any(p in response_lower for p in polite):
         quality += 0.05
+        
     bad = ["not my problem", "you're wrong", "don't care"]
     if not any(b in response_lower for b in bad):
         quality += 0.03
+    
     quality = round(min(quality, 0.19), 4)
     reward += quality
     notes.append(f"Quality +{quality:.2f} (words={words})")
 
-    # ALWAYS clamp — this is the only place reward is returned
-    reward = clamp_reward(reward)
-    return reward, " | ".join(notes)
+    # --- THE CRITICAL FIX ---
+    # Force the reward to stay strictly within (0.01, 0.99)
+    # This prevents 0.0 or 1.0 from ever being returned.
+    reward = max(0.01, min(0.99, reward))
+    
+    return float(reward), " | ".join(notes)
