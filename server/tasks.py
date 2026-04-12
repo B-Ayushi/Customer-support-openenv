@@ -94,7 +94,7 @@ def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
 
     # 1. Action Correctness (Max 0.45)
     if action_type == task["correct_action"]:
-        reward += 0.45
+        reward += 0.40
         notes.append("Correct action type (+0.45)")
     else:
         notes.append(f"Expected {task['correct_action']} (+0.00)")
@@ -103,7 +103,7 @@ def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
     expected_kws = task.get("expected_keywords", [])
     if expected_kws:
         hits = [kw for kw in expected_kws if kw in res_lower]
-        kw_score = (len(hits) / len(expected_kws)) * 0.30
+        kw_score = (len(hits) / len(expected_kws)) * 0.25
         reward += kw_score
         notes.append(f"Keywords {len(hits)}/{len(expected_kws)} (+{kw_score:.2f})")
 
