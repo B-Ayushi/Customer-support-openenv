@@ -158,7 +158,7 @@ def run_episode(task_id: str) -> dict:
         "task_id": task_id,
         "success": success,
         "steps": step_count,
-        "avg_reward": sum(rewards) / max(len(rewards), 1),
+        "avg_reward": max(LOW_BOUND, sum(rewards) / max(len(rewards), 1)),
     }
 
 def main():
