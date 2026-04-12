@@ -159,15 +159,20 @@ def run_episode(task_id: str) -> dict:
     if not rewards:
         rewards = [LOW_BOUND]
 
-    rewards_str = ",".join(f"{safe_reward(r):.4f}" for r in rewards)
-    print(f"[END] success={'true' if success else 'false'} steps={step_count} rewards={rewards_str}")
+    total_reward = sum(rewards)
+    max_possible_reward = max(len(rewards), 1)
+    score = total_reward / max_possible_reward
+    score = max(0.01, min(score, 0.99))
 
-    avg = sum(rewards) / len(rewards)
+    task_name = task_id
+    steps = step_count
+    print(f"[END] task={task_name} score={score} steps={steps}", flush=True)
+
     return {
         "task_id": task_id,
         "success": success,
         "steps": step_count,
-        "avg_reward": safe_reward(avg),
+        "avg_reward": score,
     }
 
 def main():
@@ -177,8 +182,8 @@ def main():
             result = run_episode(task_id)
             results.append(result)
         except Exception as e:
-            safe_r = LOW_BOUND
-            print(f"[END] success=false steps=1 rewards={safe_r:.4f} error={str(e).replace(' ', '_')}")
+            safe_r = 0.01
+            print(f"[END] task={task_id} score={safe_r} steps=1", flush=True)
             results.append({"task_id": task_id, "success": False, "steps": 1, "avg_reward": safe_r})
 
     print("\n" + "=" * 60)
@@ -186,10 +191,10 @@ def main():
     print("=" * 60)
     for r in results:
         status = "✓" if r["success"] else "✗"
-        avg = safe_reward(r["avg_reward"])
+        avg = max(0.01, min(float(r["avg_reward"]), 0.99))
         print(f"  {status} {r['task_id']}  avg_reward={avg:.4f}  steps={r['steps']}")
 
-    overall = safe_reward(sum(safe_reward(r["avg_reward"]) for r in results) / max(len(results), 1))
+    overall = max(0.01, min(sum(max(0.01, min(float(r["avg_reward"]), 0.99)) for r in results) / max(len(results), 1), 0.99))
     print(f"\n  OVERALL avg_reward: {overall:.4f}")
     print("=" * 60)
 
