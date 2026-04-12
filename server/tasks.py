@@ -87,7 +87,7 @@ def clamp_reward(reward: float) -> float:
     return float(max(REWARD_MIN, min(REWARD_MAX, reward)))
 
 def grade(task: dict, action_type: str, response: str) -> tuple[float, str]:
-    reward = 0.0
+    reward = REWARD_MIN
     notes = []
     response = response or ""
     res_lower = response.lower()
