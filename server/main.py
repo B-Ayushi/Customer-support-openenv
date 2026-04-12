@@ -27,7 +27,7 @@ def _new_state(task: dict) -> dict:
         "max_steps": task["max_steps"],
         "step_count": 0,
         "done": False,
-        "total_reward": 0.05, # Safe start
+        "total_reward": 0.12, # Safe start
         "history": [],
     }
 
@@ -53,7 +53,7 @@ def reset(task_id: str | None = None):
         history=[],
         task_difficulty=state["task_difficulty"],
         done=False,
-        reward=0.05, # Strictly > 0 and room for growth
+        reward=0.12, # Strictly > 0 and room for growth
         feedback="Session started.",
         session_id=session_id,
     )
